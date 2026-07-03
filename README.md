@@ -1,8 +1,8 @@
-# LancaSync
+# LançaSync
 
 Aplicativo em React Native para registrar compras e vendas com fotos.
 
-Os dados ficam salvos no celular pelo WatermelonDB e depois sao sincronizados com uma API em Node.js usando MySQL.
+Os dados ficam salvos no celular pelo WatermelonDB e depois são sincronizados com uma API em Node.js usando MySQL.
 
 ## Requisitos
 
@@ -10,7 +10,7 @@ Os dados ficam salvos no celular pelo WatermelonDB e depois sao sincronizados co
 - npm
 - Docker Desktop
 - Android Studio com SDK configurado
-- Emulador Android ou celular com depuracao USB ativa
+- Emulador Android ou celular com depuração USB ativa
 
 ## Rodar o backend
 
@@ -35,6 +35,10 @@ A API vai rodar em:
 ```text
 http://localhost:3333
 ```
+
+Quando aparecer `API rodando em http://localhost:3333` no terminal, o backend está ativo.
+
+Se abrir `http://localhost:3333/` no navegador e aparecer `404`, está tudo certo. A API não tem uma página inicial; as rotas usadas pelo app ficam em `/api`.
 
 ## Rodar o app Android
 
@@ -61,35 +65,35 @@ Se preferir rodar no emulador sem `adb reverse`, altere `mobile/src/config.ts` p
 export const API_URL = 'http://10.0.2.2:3333/api';
 ```
 
-## Usuarios de teste
+## Usuários de teste
 
 | Empresa | Login | Senha |
 | --- | --- | --- |
 | Empresa Alfa | `joao@empresa1.com` | `123456` |
 | Empresa Beta | `maria@empresa2.com` | `123456` |
 
-Cada usuario esta ligado a uma empresa diferente. Ao entrar no app, ele ve e cadastra apenas os registros da propria empresa.
+Cada usuário está ligado a uma empresa diferente. Ao entrar no app, ele vê e cadastra apenas os registros da própria empresa.
 
 ## Testar offline/online
 
 1. Rode o backend e abra o app.
-2. Entre com um dos usuarios de teste.
+2. Entre com um dos usuários de teste.
 3. Desligue a internet do emulador ou do celular.
-4. Cadastre um lancamento com tipo, data/hora, descricao e foto(s).
+4. Cadastre um lançamento com tipo, data/hora, descrição e foto(s).
 5. O registro aparece na lista como `Pendente`.
 6. Ligue a internet novamente.
 7. Toque em `Sincronizar`.
-8. Depois da sincronizacao, o status muda para `Sincronizado`.
+8. Depois da sincronização, o status muda para `Sincronizado`.
 
 ## O que foi implementado
 
 - Login validado pelo backend.
-- Sessao salva localmente para nao precisar logar toda vez.
+- Sessão salva localmente para não precisar logar toda vez.
 - Tabelas `empresa`, `usuario`, `registro` e `foto_registro` no MySQL.
-- Dois usuarios iniciais, um para cada empresa.
-- Models e schema do WatermelonDB no app.
-- Sincronizacao com `pullChanges` e `pushChanges`.
-- Cadastro offline com tipo, data/hora, descricao e multiplas fotos.
+- Dois usuários iniciais, um para cada empresa.
+- Modelos e schema do WatermelonDB no app.
+- Sincronização com `pullChanges` e `pushChanges`.
+- Cadastro offline com tipo, data/hora, descrição e múltiplas fotos.
 - Lista de registros com status `Pendente` ou `Sincronizado`.
 
 ## Scripts principais
