@@ -1,126 +1,108 @@
-# Teste candidato - React Native offline
+# LancaSync
 
-Aplicativo mobile em React Native com WatermelonDB local, sincronizacao offline e API REST Node/Express persistindo em MySQL.
-
-## Estrutura
-
-- `mobile`: app React Native com login, sessao local, WatermelonDB, cadastro de registros, fotos e sincronizacao.
-- `backend`: API REST com autenticacao JWT, seed, isolamento por empresa, pull/push de sync e upload opcional de fotos.
-- `docker-compose.yml`: MySQL local para desenvolvimento.
+Aplicativo mobile em React Native para registrar compras e vendas com fotos, usando WatermelonDB como banco local e sincronizacao offline com backend Node.js/Express + MySQL.
 
 ## Requisitos
 
 - Node.js 18+
 - npm
-- Docker Desktop, ou MySQL 8 instalado localmente
-- Ambiente React Native configurado para Android/iOS
+- Docker Desktop
+- Android Studio/SDK configurado
+- Emulador Android ou celular Android com depuracao USB
 
-## Backend
+## Rodar o backend
 
-1. Suba o MySQL:
+Na raiz do projeto, execute:
 
-```bash
+```powershell
+npm run backend:install
+Copy-Item backend\.env.example backend\.env -Force
 docker compose up -d mysql
+npm run backend:db:init
+npm run backend:dev
 ```
 
-2. Configure as variaveis:
+Se estiver usando Git Bash, Linux ou macOS, troque apenas o comando de copia do `.env`:
 
 ```bash
-cd backend
-cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
-Se estiver usando o `docker-compose.yml`, use `DB_USER=root` e `DB_PASSWORD=root`.
+A API ficara em:
 
-3. Instale dependencias, crie tabelas e seed:
+```text
+http://localhost:3333
+```
+
+Teste rapido no navegador:
+
+```text
+http://localhost:3333/health
+```
+
+## Rodar o app Android
+
+Abra outro terminal na raiz do projeto:
 
 ```bash
-npm install
-npm run db:init
-npm run dev
+npm run mobile:install
+adb reverse tcp:3333 tcp:3333
+adb reverse tcp:8081 tcp:8081
+npm run mobile:start
 ```
 
-A API fica em `http://localhost:3333`.
+Abra um terceiro terminal na raiz do projeto:
 
-Tambem e possivel executar os scripts a partir da pasta raiz:
+```bash
+npm run mobile:android
+```
+
+O `adb reverse` permite que o app acesse a API local usando `http://localhost:3333/api`.
+
+Se estiver usando Android Emulator sem `adb reverse`, altere `mobile/src/config.ts` para:
+
+```ts
+export const API_URL = 'http://10.0.2.2:3333/api';
+```
+
+## Usuarios de teste
+
+| Empresa | Login | Senha |
+| --- | --- | --- |
+| Empresa Alfa | `joao@empresa1.com` | `123456` |
+| Empresa Beta | `maria@empresa2.com` | `123456` |
+
+Cada usuario pertence a uma empresa diferente. Depois do login, o app lista e sincroniza apenas os registros da empresa do usuario autenticado.
+
+## Testar offline/online
+
+1. Rode o backend e o app.
+2. Faca login com um dos usuarios de teste.
+3. Desligue a internet do emulador ou celular.
+4. Cadastre um lancamento informando tipo, data/hora, descricao com pelo menos 10 caracteres e foto(s).
+5. O registro fica salvo localmente no WatermelonDB e aparece como `Pendente`.
+6. Ligue a internet novamente.
+7. Toque em `Sincronizar`.
+8. O registro e as fotos sao enviados para o backend e o status passa para `Sincronizado`.
+
+## O que foi implementado
+
+- Login validado no backend com dados do MySQL.
+- Sessao local para pular a tela de login ao reabrir o app.
+- Tabelas `empresa`, `usuario`, `registro` e `foto_registro`.
+- Dois usuarios iniciais, cada um vinculado a uma empresa.
+- Schema e models WatermelonDB para empresa, usuario, registro e fotos.
+- `pullChanges` e `pushChanges` para sincronizacao.
+- Cadastro offline de registros com tipo, data/hora, descricao e multiplas fotos.
+- Lista local com tipo, data/hora, descricao e status de sincronizacao.
+
+## Scripts principais
 
 ```bash
 npm run backend:install
 npm run backend:db:init
 npm run backend:dev
-```
-
-Usuarios iniciais:
-
-- `joao@empresa1.com` / `123456`
-- `maria@empresa2.com` / `123456`
-
-Cada usuario pertence a uma empresa diferente. A API sempre filtra pull, push, upload e listagens pelo `empresa_id` do token.
-
-## Mobile
-
-1. Instale dependencias:
-
-```bash
-cd mobile
-npm install
-```
-
-2. Confira a URL da API em `src/config.ts`.
-
-Para Android com `adb reverse` ou iOS Simulator, use:
-
-```ts
-export const API_URL = 'http://localhost:3333/api';
-```
-
-Antes de abrir o app no Android, encaminhe a porta da API:
-
-```bash
-adb reverse tcp:3333 tcp:3333
-adb reverse tcp:8081 tcp:8081
-```
-
-Sem `adb reverse`, em Android Emulator voce pode usar `http://10.0.2.2:3333/api`; em dispositivo fisico, use o IP da maquina na rede.
-
-3. Rode o app:
-
-```bash
-npm run start
-npm run android
-```
-
-Ou, a partir da pasta raiz:
-
-```bash
 npm run mobile:install
 npm run mobile:start
 npm run mobile:android
 ```
-
-Este diretorio contem o codigo fonte do app. Se o projeto ainda nao tiver pastas nativas `android/ios`, gere-as com a React Native CLI usando a mesma versao do `package.json` ou copie este `App.tsx` e `src` para um projeto React Native CLI novo.
-
-## Teste offline/online
-
-1. Faca login com um dos usuarios de seed.
-2. Desligue a internet do emulador/dispositivo.
-3. Cadastre um registro com tipo, data/hora, descricao com pelo menos 10 caracteres e uma ou mais fotos.
-4. O registro aparece na lista como `Pendente`, pois esta apenas no WatermelonDB.
-5. Reative a internet.
-6. Toque em `Sincronizar`, ou aguarde a sincronizacao automatica pelo NetInfo.
-7. O backend recebe os registros pelo endpoint `POST /api/sync`; as fotos sao enviadas para `POST /api/registros/:registroId/fotos/:fotoId/file` quando ha arquivo local disponivel.
-
-## Endpoints principais
-
-- `POST /api/auth/login`: valida usuario/senha contra MySQL e retorna JWT.
-- `GET /api/auth/me`: retorna usuario logado.
-- `GET /api/sync?lastPulledAt=0`: pullChanges para WatermelonDB.
-- `POST /api/sync`: pushChanges do WatermelonDB.
-- `POST /api/registros/:registroId/fotos/:fotoId/file`: upload multipart opcional da foto.
-
-## Observacoes de implementacao
-
-- `registro.id` e `foto_registro.id` usam UUID para permitir criacao offline antes de existir servidor.
-- O banco remoto usa as tabelas obrigatorias `empresa`, `usuario`, `registro` e a auxiliar `foto_registro`.
-- O app usa as collections WatermelonDB `empresas`, `usuarios`, `registros` e `fotos_registro`.
-- Campos de sync usam `created_at`, `updated_at` e `deleted_at`; exclusoes sao tratadas como soft delete no backend.
