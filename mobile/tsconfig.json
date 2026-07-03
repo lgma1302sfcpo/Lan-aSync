@@ -1,0 +1,10 @@
+{
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": false,
+    "strict": true,
+    "baseUrl": "."
+  },
+  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx"]
+}

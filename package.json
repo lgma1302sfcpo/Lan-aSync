@@ -1,0 +1,13 @@
+{
+  "name": "teste-candidato-aplicativo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "backend:install": "npm --prefix backend install",
+    "backend:db:init": "npm --prefix backend run db:init",
+    "backend:dev": "npm --prefix backend run dev",
+    "mobile:install": "npm --prefix mobile install",
+    "mobile:start": "npm --prefix mobile run start",
+    "mobile:android": "npm --prefix mobile run android"
+  }
+}
