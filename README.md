@@ -4,6 +4,15 @@ Aplicativo em React Native para registrar compras e vendas com fotos.
 
 Os dados ficam salvos no celular pelo WatermelonDB e depois são sincronizados com uma API em Node.js usando MySQL.
 
+## Baixar o projeto
+
+Clone o repositório e entre na pasta:
+
+```bash
+git clone https://github.com/lgma1302sfcpo/Lan-aSync.git
+cd Lan-aSync
+```
+
 ## Requisitos
 
 - Node.js 18+

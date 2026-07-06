@@ -7,13 +7,15 @@ import {
   Alert,
   FlatList,
   Image,
+  PermissionsAndroid,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { Asset, launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { Asset, ImagePickerResponse, launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { RegistroItem } from '../components/RegistroItem';
 import { database } from '../database';
 import FotoRegistro from '../database/models/FotoRegistro';
@@ -157,20 +159,59 @@ export function MainScreen({ session, onLogout }: Props) {
       selectionLimit: 0,
     });
 
+    handlePhotoResult(result);
+  }
+
+  function handlePhotoResult(result: ImagePickerResponse) {
+    if (result.didCancel) {
+      return;
+    }
+
+    if (result.errorCode) {
+      Alert.alert(
+        'Foto nao adicionada',
+        result.errorMessage || 'Nao foi possivel abrir a camera ou galeria.',
+      );
+      return;
+    }
+
     if (result.assets?.length) {
       setPhotos(current => [...current, ...result.assets!]);
     }
   }
 
+  async function requestCameraPermission() {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.CAMERA,
+      {
+        title: 'Permissao da camera',
+        message: 'O app precisa acessar a camera para tirar fotos do lancamento.',
+        buttonPositive: 'Permitir',
+        buttonNegative: 'Cancelar',
+      },
+    );
+
+    return result === PermissionsAndroid.RESULTS.GRANTED;
+  }
+
   async function addFromCamera() {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      Alert.alert('Permissao negada', 'Autorize o acesso a camera para tirar fotos.');
+      return;
+    }
+
     const result = await launchCamera({
       mediaType: 'photo',
-      saveToPhotos: true,
+      cameraType: 'back',
+      quality: 0.8,
     });
 
-    if (result.assets?.length) {
-      setPhotos(current => [...current, ...result.assets!]);
-    }
+    handlePhotoResult(result);
   }
 
   function handleDateChange(value: string) {
