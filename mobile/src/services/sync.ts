@@ -26,7 +26,6 @@ export async function syncDatabase() {
         body: JSON.stringify({ changes, lastPulledAt }),
       });
     },
-    migrationsEnabledAtVersion: 1,
   });
 
   await uploadPendingPhotoFiles();
