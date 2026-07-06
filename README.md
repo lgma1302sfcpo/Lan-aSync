@@ -104,9 +104,10 @@ Cada usuário está ligado a uma empresa diferente. Ao entrar no app, ele vê e 
 3. Desligue a internet do emulador ou do celular.
 4. Cadastre um lançamento com tipo, data/hora, descrição e foto(s).
 5. O registro aparece na lista como `Pendente`.
-6. Ligue a internet novamente.
-7. Toque em `Sincronizar`.
-8. Depois da sincronização, o status muda para `Sincronizado`.
+6. Se quiser, edite ou exclua o registro ainda offline.
+7. Ligue a internet novamente.
+8. Toque em `Sincronizar`.
+9. Depois da sincronização, o status muda para `Sincronizado`.
 
 ## O que foi implementado
 
@@ -117,6 +118,7 @@ Cada usuário está ligado a uma empresa diferente. Ao entrar no app, ele vê e 
 - Modelos e schema do WatermelonDB no app.
 - Sincronização com `pullChanges` e `pushChanges`.
 - Cadastro offline com tipo, data/hora, descrição e múltiplas fotos.
+- Edição e exclusão de registros locais.
 - Lista de registros com status `Pendente` ou `Sincronizado`.
 
 ## Scripts principais
