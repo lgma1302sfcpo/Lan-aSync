@@ -1,4 +1,4 @@
-import { API_URL } from '../config';
+import { API_URLS } from '../config';
 import { getSession } from './sessionStorage';
 
 type RequestOptions = RequestInit & {
@@ -21,6 +21,10 @@ async function parseResponse(response: Response) {
   return data;
 }
 
+function isNetworkError(error: unknown) {
+  return error instanceof Error && /Network request failed/i.test(error.message);
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -29,12 +33,24 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     ...(options.headers as Record<string, string> | undefined),
   };
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  for (const apiUrl of API_URLS) {
+    try {
+      const response = await fetch(`${apiUrl}${path}`, {
+        ...options,
+        headers,
+      });
 
-  return parseResponse(response) as Promise<T>;
+      return parseResponse(response) as Promise<T>;
+    } catch (error) {
+      if (!isNetworkError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error(
+    `Nao foi possivel conectar na API. Verifique se o backend esta rodando e se o aparelho consegue acessar: ${API_URLS.join(' ou ')}`,
+  );
 }
 
 export async function uploadPhotoFile(

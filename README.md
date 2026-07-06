@@ -59,10 +59,20 @@ npm run mobile:android
 
 O `adb reverse` faz o app conseguir acessar a API local em `http://localhost:3333/api`.
 
-Se preferir rodar no emulador sem `adb reverse`, altere `mobile/src/config.ts` para:
+O app também tenta acessar automaticamente a API pelo endereço do Metro e por `http://10.0.2.2:3333/api`, usado pelo emulador Android.
 
-```ts
-export const API_URL = 'http://10.0.2.2:3333/api';
+Se aparecer `Network request failed`, confira se o backend está rodando e rode novamente:
+
+```bash
+adb reverse tcp:3333 tcp:3333
+```
+
+Se estiver usando celular físico sem USB, o celular e o computador precisam estar na mesma rede Wi-Fi.
+
+Se ainda precisar ajustar manualmente, o arquivo de configuração é:
+
+```text
+mobile/src/config.ts
 ```
 
 ## Usuários de teste
