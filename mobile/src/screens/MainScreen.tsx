@@ -1,4 +1,3 @@
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import NetInfo from '@react-native-community/netinfo';
 import { Picker } from '@react-native-picker/picker';
 import { Q } from '@nozbe/watermelondb';
@@ -8,7 +7,6 @@ import {
   Alert,
   FlatList,
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -30,21 +28,78 @@ type Props = {
   onLogout: () => void;
 };
 
-type PickerMode = 'date' | 'time';
-
-function formatDate(value: Date) {
+function formatDateOnly(value: Date) {
   const pad = (part: number) => String(part).padStart(2, '0');
-  return `${pad(value.getDate())}/${pad(value.getMonth() + 1)}/${value.getFullYear()} ${pad(value.getHours())}:${pad(value.getMinutes())}`;
+  return `${pad(value.getDate())}/${pad(value.getMonth() + 1)}/${value.getFullYear()}`;
+}
+
+function formatTimeOnly(value: Date) {
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${pad(value.getHours())}:${pad(value.getMinutes())}`;
+}
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, '');
+}
+
+function maskDate(value: string) {
+  const digits = onlyDigits(value).slice(0, 8);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  }
+
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function maskTime(value: string) {
+  const digits = onlyDigits(value).slice(0, 4);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
+function parseDateTime(dateInput: string, timeInput: string) {
+  const dateMatch = dateInput.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const timeMatch = timeInput.trim().match(/^(\d{2}):(\d{2})$/);
+
+  if (!dateMatch || !timeMatch) {
+    return null;
+  }
+
+  const day = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]);
+  const year = Number(dateMatch[3]);
+  const hour = Number(timeMatch[1]);
+  const minute = Number(timeMatch[2]);
+  const parsed = new Date(year, month - 1, day, hour, minute);
+
+  const isValid =
+    parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day &&
+    parsed.getHours() === hour &&
+    parsed.getMinutes() === minute;
+
+  return isValid ? parsed : null;
 }
 
 export function MainScreen({ session, onLogout }: Props) {
   const [tipo, setTipo] = useState<'COMPRA' | 'VENDA'>('COMPRA');
-  const [dataHora, setDataHora] = useState(new Date());
+  const [dataInput, setDataInput] = useState(formatDateOnly(new Date()));
+  const [horaInput, setHoraInput] = useState(formatTimeOnly(new Date()));
   const [descricao, setDescricao] = useState('');
   const [photos, setPhotos] = useState<Asset[]>([]);
   const [registros, setRegistros] = useState<Registro[]>([]);
+  const [editingRegistro, setEditingRegistro] = useState<Registro | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [pickerMode, setPickerMode] = useState<PickerMode | null>(null);
   const syncingRef = useRef(false);
 
   useEffect(() => {
@@ -96,16 +151,6 @@ export function MainScreen({ session, onLogout }: Props) {
     }
   }
 
-  function onDateChange(_event: DateTimePickerEvent, selected?: Date) {
-    if (Platform.OS !== 'ios') {
-      setPickerMode(null);
-    }
-
-    if (selected) {
-      setDataHora(selected);
-    }
-  }
-
   async function addFromGallery() {
     const result = await launchImageLibrary({
       mediaType: 'photo',
@@ -128,6 +173,62 @@ export function MainScreen({ session, onLogout }: Props) {
     }
   }
 
+  function handleDateChange(value: string) {
+    setDataInput(maskDate(value));
+  }
+
+  function handleTimeChange(value: string) {
+    setHoraInput(maskTime(value));
+  }
+
+  function clearForm() {
+    setTipo('COMPRA');
+    setDataInput(formatDateOnly(new Date()));
+    setHoraInput(formatTimeOnly(new Date()));
+    setDescricao('');
+    setPhotos([]);
+    setEditingRegistro(null);
+  }
+
+  function handleEdit(registro: Registro) {
+    const date = new Date(registro.dataHora);
+    setEditingRegistro(registro);
+    setTipo(registro.tipo);
+    setDataInput(formatDateOnly(date));
+    setHoraInput(formatTimeOnly(date));
+    setDescricao(registro.descricao);
+    setPhotos([]);
+  }
+
+  function handleDelete(registro: Registro) {
+    Alert.alert(
+      'Excluir registro',
+      'Deseja excluir este registro?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            await database.write(async () => {
+              const fotos = await registro.fotos.fetch();
+
+              for (const foto of fotos) {
+                await foto.markAsDeleted();
+              }
+
+              await registro.markAsDeleted();
+            });
+
+            if (editingRegistro?.id === registro.id) {
+              clearForm();
+            }
+          },
+        },
+      ],
+    );
+  }
+
   async function handleSave() {
     if (!tipo) {
       Alert.alert('Campo obrigatorio', 'Selecione compra ou venda.');
@@ -139,27 +240,43 @@ export function MainScreen({ session, onLogout }: Props) {
       return;
     }
 
+    const selectedDate = parseDateTime(dataInput, horaInput);
+    if (!selectedDate) {
+      Alert.alert('Data invalida', 'Informe a data como DD/MM/AAAA e a hora como HH:MM.');
+      return;
+    }
+
     const registroId = createId();
     const now = Date.now();
     const registroCollection = database.collections.get<Registro>('registros');
     const fotoCollection = database.collections.get<FotoRegistro>('fotos_registro');
 
     await database.write(async () => {
-      await registroCollection.create(item => {
-        (item as unknown as { _raw: { id: string } })._raw.id = registroId;
-        item.empresaId = session.usuario.empresa_id;
-        item.usuarioId = session.usuario.id;
-        item.tipo = tipo;
-        item.dataHora = dataHora.getTime();
-        item.descricao = descricao.trim();
-        (item as unknown as { _raw: { created_at: number; updated_at: number } })._raw.created_at = now;
-        (item as unknown as { _raw: { created_at: number; updated_at: number } })._raw.updated_at = now;
-      });
+      const currentRegistroId = editingRegistro?.id || registroId;
+
+      if (editingRegistro) {
+        await editingRegistro.update(item => {
+          item.tipo = tipo;
+          item.dataHora = selectedDate.getTime();
+          item.descricao = descricao.trim();
+        });
+      } else {
+        await registroCollection.create(item => {
+          (item as unknown as { _raw: { id: string } })._raw.id = currentRegistroId;
+          item.empresaId = session.usuario.empresa_id;
+          item.usuarioId = session.usuario.id;
+          item.tipo = tipo;
+          item.dataHora = selectedDate.getTime();
+          item.descricao = descricao.trim();
+          (item as unknown as { _raw: { created_at: number; updated_at: number } })._raw.created_at = now;
+          (item as unknown as { _raw: { created_at: number; updated_at: number } })._raw.updated_at = now;
+        });
+      }
 
       for (const photo of photos) {
         await fotoCollection.create(item => {
           (item as unknown as { _raw: { id: string } })._raw.id = createId();
-          item.registroId = registroId;
+          item.registroId = currentRegistroId;
           item.empresaId = session.usuario.empresa_id;
           item.localUri = photo.uri || '';
           item.remoteUrl = '';
@@ -171,11 +288,11 @@ export function MainScreen({ session, onLogout }: Props) {
       }
     });
 
-    setTipo('COMPRA');
-    setDataHora(new Date());
-    setDescricao('');
-    setPhotos([]);
-    Alert.alert('Registro salvo', 'O lancamento foi salvo localmente.');
+    clearForm();
+    Alert.alert(
+      editingRegistro ? 'Registro atualizado' : 'Registro salvo',
+      editingRegistro ? 'O lancamento foi atualizado localmente.' : 'O lancamento foi salvo localmente.',
+    );
   }
 
   async function handleLogout() {
@@ -198,7 +315,9 @@ export function MainScreen({ session, onLogout }: Props) {
       <FlatList
         ListHeaderComponent={
           <View style={styles.form}>
-            <Text style={styles.sectionTitle}>Novo lancamento</Text>
+            <Text style={styles.sectionTitle}>
+              {editingRegistro ? 'Editar lancamento' : 'Novo lancamento'}
+            </Text>
 
             <Text style={styles.label}>Tipo</Text>
             <View style={styles.pickerBox}>
@@ -210,21 +329,23 @@ export function MainScreen({ session, onLogout }: Props) {
 
             <Text style={styles.label}>Data e hora</Text>
             <View style={styles.row}>
-              <Pressable onPress={() => setPickerMode('date')} style={styles.dateButton}>
-                <Text style={styles.dateButtonText}>{formatDate(dataHora)}</Text>
-              </Pressable>
-              <Pressable onPress={() => setPickerMode('time')} style={styles.smallButton}>
-                <Text style={styles.smallButtonText}>Hora</Text>
-              </Pressable>
-            </View>
-
-            {pickerMode ? (
-              <DateTimePicker
-                mode={pickerMode}
-                onChange={onDateChange}
-                value={dataHora}
+              <TextInput
+                keyboardType="numeric"
+                maxLength={10}
+                onChangeText={handleDateChange}
+                placeholder="DD/MM/AAAA"
+                style={styles.dateInput}
+                value={dataInput}
               />
-            ) : null}
+              <TextInput
+                keyboardType="numeric"
+                maxLength={5}
+                onChangeText={handleTimeChange}
+                placeholder="HH:MM"
+                style={styles.timeInput}
+                value={horaInput}
+              />
+            </View>
 
             <Text style={styles.label}>Descricao</Text>
             <TextInput
@@ -255,8 +376,15 @@ export function MainScreen({ session, onLogout }: Props) {
 
             <View style={styles.actions}>
               <Pressable onPress={handleSave} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Salvar</Text>
+                <Text style={styles.primaryButtonText}>
+                  {editingRegistro ? 'Atualizar' : 'Salvar'}
+                </Text>
               </Pressable>
+              {editingRegistro ? (
+                <Pressable onPress={clearForm} style={styles.cancelButton}>
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </Pressable>
+              ) : null}
               <Pressable disabled={syncing} onPress={() => handleSync(true)} style={styles.syncButton}>
                 {syncing ? (
                   <ActivityIndicator color="#2563eb" />
@@ -272,7 +400,13 @@ export function MainScreen({ session, onLogout }: Props) {
         contentContainerStyle={styles.listContent}
         data={registros}
         keyExtractor={item => item.id}
-        renderItem={({ item }) => <RegistroItem registro={item} />}
+        renderItem={({ item }) => (
+          <RegistroItem
+            onDelete={handleDelete}
+            onEdit={handleEdit}
+            registro={item}
+          />
+        )}
       />
     </View>
   );
@@ -290,23 +424,33 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
+  cancelButton: {
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    flex: 1,
+    height: 48,
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    color: '#334155',
+    fontWeight: '800',
+  },
   container: {
     backgroundColor: '#f8fafc',
     flex: 1,
   },
-  dateButton: {
+  dateInput: {
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderColor: '#cbd5e1',
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
+    color: '#111827',
     height: 46,
     justifyContent: 'center',
-  },
-  dateButtonText: {
-    color: '#111827',
-    fontWeight: '700',
+    paddingHorizontal: 12,
   },
   form: {
     paddingTop: 16,
@@ -408,6 +552,16 @@ const styles = StyleSheet.create({
     minHeight: 92,
     padding: 12,
     textAlignVertical: 'top',
+  },
+  timeInput: {
+    backgroundColor: '#ffffff',
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    borderWidth: 1,
+    color: '#111827',
+    height: 46,
+    paddingHorizontal: 12,
+    width: 96,
   },
   topbar: {
     alignItems: 'center',

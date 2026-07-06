@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import FotoRegistro from '../database/models/FotoRegistro';
 import Registro from '../database/models/Registro';
 
 type Props = {
   registro: Registro;
+  onDelete: (registro: Registro) => void;
+  onEdit: (registro: Registro) => void;
 };
 
 function formatDate(value: number) {
@@ -13,7 +15,7 @@ function formatDate(value: number) {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function RegistroItem({ registro }: Props) {
+export function RegistroItem({ registro, onDelete, onEdit }: Props) {
   const [fotos, setFotos] = useState<FotoRegistro[]>([]);
   const status = (registro as unknown as { _raw: { _status: string } })._raw._status;
   const statusLabel = status === 'synced' ? 'Sincronizado' : 'Pendente';
@@ -47,11 +49,25 @@ export function RegistroItem({ registro }: Props) {
           {fotos.length > 4 ? <Text style={styles.more}>+{fotos.length - 4}</Text> : null}
         </View>
       ) : null}
+
+      <View style={styles.actions}>
+        <Pressable onPress={() => onEdit(registro)} style={styles.editButton}>
+          <Text style={styles.editButtonText}>Editar</Text>
+        </Pressable>
+        <Pressable onPress={() => onDelete(registro)} style={styles.deleteButton}>
+          <Text style={styles.deleteButtonText}>Excluir</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
   card: {
     backgroundColor: '#ffffff',
     borderColor: '#d8dee9',
@@ -69,6 +85,31 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     fontSize: 15,
     lineHeight: 21,
+  },
+  deleteButton: {
+    alignItems: 'center',
+    borderColor: '#ef4444',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    height: 38,
+    justifyContent: 'center',
+  },
+  deleteButtonText: {
+    color: '#dc2626',
+    fontWeight: '700',
+  },
+  editButton: {
+    alignItems: 'center',
+    backgroundColor: '#eef2ff',
+    borderRadius: 8,
+    flex: 1,
+    height: 38,
+    justifyContent: 'center',
+  },
+  editButtonText: {
+    color: '#1d4ed8',
+    fontWeight: '700',
   },
   header: {
     alignItems: 'center',
