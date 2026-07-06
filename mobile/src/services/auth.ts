@@ -1,6 +1,5 @@
 import { apiRequest } from './api';
 import { saveSession } from './sessionStorage';
-import { persistLoggedUser } from '../database/helpers';
 import type { Session } from '../types/session';
 
 type LoginResponse = Session & {
@@ -14,7 +13,6 @@ export async function login(loginInput: string, senha: string) {
   });
 
   await saveSession({ token: data.token, usuario: data.usuario });
-  await persistLoggedUser(data.usuario);
 
   return { token: data.token, usuario: data.usuario };
 }
