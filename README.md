@@ -51,6 +51,19 @@ adb reverse tcp:8081 tcp:8081
 npm run mobile:start
 ```
 
+Se tiver mais de um aparelho ou emulador conectado, veja o id com:
+
+```bash
+adb devices
+```
+
+Depois rode o `adb reverse` informando o id do aparelho:
+
+```bash
+adb -s ID_DO_APARELHO reverse tcp:3333 tcp:3333
+adb -s ID_DO_APARELHO reverse tcp:8081 tcp:8081
+```
+
 Depois, em mais um terminal:
 
 ```bash
